@@ -3,12 +3,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from firecrawl import FirecrawlApp
-from duckduckgo_search import DDGS
-import google.generativeai as genai
+from ddgs import DDGS  # FIX 2: migrated from duckduckgo_search to ddgs
+from google import genai
+from google.genai import types
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import os
 import time
+import uuid
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+import chromadb
 
 # LOAD ENV
 
@@ -19,19 +24,24 @@ load_dotenv()
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# GEMINI CONFIG
+# GEMINI CONFIG (new google-genai SDK)
 
-genai.configure(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY)
 
-model = genai.GenerativeModel(
-    "gemini-1.5-flash-latest"
+MODEL_NAME = "gemini-2.0-flash"
+
+embeddings = GoogleGenerativeAIEmbeddings(
+    model="models/text-embedding-004",
+    google_api_key=GEMINI_API_KEY
 )
+
+# ChromaDB — no global collection, created per-request
+
+chroma_client = chromadb.PersistentClient(path="./chroma_db")
 
 # FIRECRAWL
 
-firecrawl = FirecrawlApp(
-    api_key=FIRECRAWL_API_KEY
-)
+firecrawl = FirecrawlApp(api_key=FIRECRAWL_API_KEY)
 
 # FASTAPI
 
@@ -68,9 +78,7 @@ class FollowUpRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return {
-        "message": "DeepScout Backend Running"
-    }
+    return {"message": "DeepScout Backend Running"}
 
 # ASYNC SCRAPER
 
@@ -87,7 +95,7 @@ async def scrape_url(url):
             lambda: firecrawl.scrape(url)
         )
 
-        content = result.markdown[:200]
+        content = result.markdown[:3000] if result.markdown else ""
 
         return {
             "url": url,
@@ -97,7 +105,7 @@ async def scrape_url(url):
 
     except Exception as e:
 
-        print(f"❌ Scraping Error: {e}")
+        print(f"❌ Scraping Error for {url}: {e}")
 
         return {
             "url": url,
@@ -121,79 +129,122 @@ async def research(data: ResearchRequest):
     # CACHE CHECK
 
     if cache_key in CACHE:
-
         cached_item = CACHE[cache_key]
-
         if time.time() - cached_item["timestamp"] < CACHE_EXPIRY:
-
             print("⚡ Returning Cached Response")
-
             return cached_item["data"]
 
     print(f"\n🔎 Query: {query}")
     print(f"🧠 Mode: {mode}")
 
-    # SEARCH WEB
+    # SEARCH WEB — FIX 1: this block is now correctly indented inside research()
 
     urls = []
 
     try:
-
         with DDGS() as ddgs:
-
-            results = ddgs.text(
-                query,
-                max_results=1
-            )
-
+            time.sleep(1)  # avoid rate limit
+            results = list(ddgs.text(query, max_results=4))
             for result in results:
-
                 if "href" in result:
-
                     urls.append(result["href"])
-
     except Exception as e:
-
         print(f"❌ Search Error: {e}")
 
-    print("\n🌐 URLs:")
-    print(urls)
+    print(f"🌐 URLs Found: {len(urls)}")
 
     # SCRAPE IN PARALLEL
 
-    scrape_results = await asyncio.gather(
-        *[scrape_url(url) for url in urls]
-    )
+    if urls:
+        scrape_results = await asyncio.gather(
+            *[scrape_url(url) for url in urls]
+        )
+    else:
+        scrape_results = []
 
     all_content = ""
     sources = []
 
     for item in scrape_results:
 
-        if item["success"]:
+        if item["success"] and item["content"]:
 
             all_content += f"\n\nSOURCE: {item['url']}\n"
             all_content += item["content"]
 
             sources.append({
-                "title": item["url"].replace(
-                    "https://",
-                    ""
-                ).split("/")[0],
+                "title": item["url"].replace("https://", "").split("/")[0],
                 "url": item["url"]
             })
+
+    # =====================
+    # RAG PIPELINE
+    # =====================
+
+    retrieved_context = ""
+
+    if all_content.strip():
+
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=500,
+            chunk_overlap=100
+        )
+
+        chunks = text_splitter.split_text(all_content)
+
+        print(f"📚 Chunks Created: {len(chunks)}")
+
+        collection_name = f"research_{uuid.uuid4().hex[:8]}"
+        collection = chroma_client.get_or_create_collection(name=collection_name)
+
+        try:
+
+            for idx, chunk in enumerate(chunks):
+
+                embedding = embeddings.embed_query(chunk)
+
+                collection.add(
+                    ids=[str(idx)],
+                    embeddings=[embedding],
+                    documents=[chunk]
+                )
+
+            query_embedding = embeddings.embed_query(query)
+
+            rag_results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=min(4, len(chunks))
+            )
+
+            retrieved_context = "\n\n".join(rag_results["documents"][0])
+
+            print(f"🎯 Retrieved Chunks: {len(rag_results['documents'][0])}")
+
+        except Exception as e:
+
+            print(f"❌ RAG Error: {e}")
+            retrieved_context = all_content[:3000]
+
+        finally:
+
+            try:
+                chroma_client.delete_collection(collection_name)
+            except Exception:
+                pass
+
+    else:
+
+        print("⚠️ No content scraped — skipping RAG")
+        retrieved_context = "No web content could be retrieved for this query."
 
     # PREVIOUS CONTEXT
 
     previous_context = ""
 
-    for item in history[-2:]:
-
+    for item in history[-3:]:
         previous_context += f"""
 User: {item.get('query', '')}
-
-Assistant:
-{item.get('report', '')[:300]}
+Assistant: {item.get('report', '')[:300]}
 """
 
     # MODE CONFIGS
@@ -323,8 +374,8 @@ MODE INSTRUCTIONS:
 PREVIOUS CONTEXT:
 {previous_context}
 
-WEB CONTENT:
-{all_content}
+RETRIEVED CONTEXT:
+{retrieved_context}
 
 STRICTLY FOLLOW THIS STRUCTURE:
 {format_template}
@@ -351,8 +402,13 @@ THEN:
 
     try:
 
-        response = model.generate_content(
-            prompt
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=2048,
+            )
         )
 
         report = response.text
@@ -361,29 +417,26 @@ THEN:
 
     except Exception as e:
 
+        # FIX 3: surface the actual Gemini error clearly instead of silent None
         print(f"❌ Gemini Error: {e}")
-
-    if report is None:
-
-        report = "AI generation failed."
+        report = f"AI generation failed: {str(e)}\n\nCheck your GEMINI_API_KEY and that the Gemini API is enabled in your Google Cloud project."
 
     final_response = {
         "report": report,
         "sources": sources
     }
 
-    # SAVE CACHE
+    # Only cache successful Gemini responses
+    if "AI generation failed" not in report:
+        CACHE[cache_key] = {
+            "timestamp": time.time(),
+            "data": final_response
+        }
 
-    CACHE[cache_key] = {
-        "timestamp": time.time(),
-        "data": final_response
-    }
-
-    print(
-        f"⚡ Total Time: {round(time.time() - start_time, 2)}s"
-    )
+    print(f"⚡ Total Time: {round(time.time() - start_time, 2)}s")
 
     return final_response
+
 
 # FOLLOW-UP CHAT
 
@@ -423,8 +476,13 @@ FORMAT:
 
     try:
 
-        response = model.generate_content(
-            prompt
+        response = client.models.generate_content(
+            model=MODEL_NAME,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.7,
+                max_output_tokens=1024,
+            )
         )
 
         answer = response.text
@@ -434,11 +492,6 @@ FORMAT:
     except Exception as e:
 
         print(f"❌ Follow-up Error: {e}")
+        answer = f"Failed to generate follow-up response: {str(e)}"
 
-    if answer is None:
-
-        answer = "Failed to generate follow-up response."
-
-    return {
-        "answer": answer
-    }
+    return {"answer": answer}

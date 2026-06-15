@@ -23,6 +23,9 @@ load_dotenv()
 
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+print("Gemini key exists:", bool(GEMINI_API_KEY))
 
 # GEMINI CONFIG (new google-genai SDK)
 

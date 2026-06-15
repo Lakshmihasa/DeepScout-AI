@@ -1,9 +1,10 @@
+from openai import OpenAI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from firecrawl import FirecrawlApp
-from ddgs import DDGS  # FIX 2: migrated from duckduckgo_search to ddgs
+from ddgs import DDGS
 from google import genai
 from google.genai import types
 import asyncio
@@ -15,19 +16,35 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import chromadb
 
+
 # LOAD ENV
 
 load_dotenv()
+import os
+
+print("CWD:", os.getcwd())
+print("ENV FILE CHECK:", os.path.exists(".env"))
+print("OPENROUTER:", os.getenv("OPENROUTER_API_KEY"))
+
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+openrouter_client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+)
 
 # API KEYS
 
 FIRECRAWL_API_KEY = os.getenv("FIRECRAWL_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+print("Gemini key exists:", bool(GEMINI_API_KEY))
+print("OpenRouter key exists:", bool(OPENROUTER_API_KEY))
 
 print("Gemini key exists:", bool(GEMINI_API_KEY))
 
-# GEMINI CONFIG (new google-genai SDK)
+# GEMINI CONFIG (embeddings only)
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -140,7 +157,7 @@ async def research(data: ResearchRequest):
     print(f"\n🔎 Query: {query}")
     print(f"🧠 Mode: {mode}")
 
-    # SEARCH WEB — FIX 1: this block is now correctly indented inside research()
+    # SEARCH WEB
 
     urls = []
 
@@ -399,37 +416,38 @@ THEN:
 - compare side-by-side
 """
 
-    # GEMINI GENERATION
+    # OPENROUTER GENERATION
 
     report = None
 
     try:
 
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.7,
-                max_output_tokens=2048,
-            )
+        response = openrouter_client.chat.completions.create(
+            model="openai/gpt-oss-20b:free",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
         )
 
-        report = response.text
+        report = response.choices[0].message.content
 
-        print("✅ Gemini Success")
+        print("✅ OpenRouter Success")
 
     except Exception as e:
 
-        # FIX 3: surface the actual Gemini error clearly instead of silent None
-        print(f"❌ Gemini Error: {e}")
-        report = f"AI generation failed: {str(e)}\n\nCheck your GEMINI_API_KEY and that the Gemini API is enabled in your Google Cloud project."
+        print(f"❌ OpenRouter Error: {e}")
+        report = f"AI generation failed: {str(e)}\n\nCheck your OPENROUTER_API_KEY and model availability."
 
     final_response = {
         "report": report,
         "sources": sources
     }
 
-    # Only cache successful Gemini responses
+    # Only cache successful responses
     if "AI generation failed" not in report:
         CACHE[cache_key] = {
             "timestamp": time.time(),
@@ -479,16 +497,18 @@ FORMAT:
 
     try:
 
-        response = client.models.generate_content(
-            model=MODEL_NAME,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.7,
-                max_output_tokens=1024,
-            )
+        response = openrouter_client.chat.completions.create(
+            model="openai/gpt-oss-20b:free",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            temperature=0.7,
         )
 
-        answer = response.text
+        answer = response.choices[0].message.content
 
         print("✅ Follow-up Success")
 

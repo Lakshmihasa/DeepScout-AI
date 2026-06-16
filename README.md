@@ -1,5 +1,6 @@
 # 🔍 DeepScout AI
 
+
 > **Autonomous research assistant** that searches the web, scrapes live sources, and generates structured reports — so you don't have to open 10 tabs.
 
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)

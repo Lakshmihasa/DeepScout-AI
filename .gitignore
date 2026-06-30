@@ -14,6 +14,3 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Evaluation outputs
-eval/results/*.json
-eval/results/*.jsonl

@@ -1,10 +1,15 @@
 # Python
+.venv/
 venv/
+**/.venv/
 __pycache__/
-*.pyc
+*.py[cod]
 
 # Environment
 .env
+
+# Evaluation outputs
+backend/eval/results/
 
 # Next.js
 node_modules/
@@ -13,4 +18,3 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
-

@@ -13,3 +13,7 @@ node_modules/
 # OS
 .DS_Store
 Thumbs.db
+
+# Evaluation outputs
+eval/results/*.json
+eval/results/*.jsonl

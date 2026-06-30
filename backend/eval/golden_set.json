@@ -1,0 +1,81 @@
+[
+  {
+    "id": "q01",
+    "query": "How does retrieval-augmented generation (RAG) work?",
+    "mode": "Beginner",
+    "human_scores": null
+  },
+  {
+    "id": "q02",
+    "query": "What is a vector database and when do you need one?",
+    "mode": "Beginner"
+  },
+  {
+    "id": "q03",
+    "query": "Explain how transformer attention works",
+    "mode": "Beginner"
+  },
+  {
+    "id": "q04",
+    "query": "Tradeoffs between HNSW and IVF indexes in vector search",
+    "mode": "Technical",
+    "human_scores": null
+  },
+  {
+    "id": "q05",
+    "query": "How does continuous batching improve LLM inference throughput?",
+    "mode": "Technical"
+  },
+  {
+    "id": "q06",
+    "query": "PagedAttention vs naive KV cache memory management",
+    "mode": "Technical"
+  },
+  {
+    "id": "q07",
+    "query": "Most asked system design interview questions on caching",
+    "mode": "Interview Prep"
+  },
+  {
+    "id": "q08",
+    "query": "Common mistakes candidates make explaining RAG in interviews",
+    "mode": "Interview Prep",
+    "human_scores": null
+  },
+  {
+    "id": "q09",
+    "query": "Is an AI research assistant a viable startup in 2026?",
+    "mode": "Startup Analysis"
+  },
+  {
+    "id": "q10",
+    "query": "Monetization strategies for developer-tools startups",
+    "mode": "Startup Analysis"
+  },
+  {
+    "id": "q11",
+    "query": "Competitors to Perplexity and how they differentiate",
+    "mode": "Startup Analysis"
+  },
+  {
+    "id": "q12",
+    "query": "Recent advances in speculative decoding for LLMs",
+    "mode": "Research Paper"
+  },
+  {
+    "id": "q13",
+    "query": "Limitations of LLM-as-judge evaluation methods",
+    "mode": "Research Paper",
+    "human_scores": null
+  },
+  {
+    "id": "q14",
+    "query": "Survey of KV cache compression techniques",
+    "mode": "Research Paper"
+  },
+  {
+    "id": "q15",
+    "query": "Tavily vs Exa vs DuckDuckGo for AI agent web search",
+    "mode": "Technical"
+  }
+]

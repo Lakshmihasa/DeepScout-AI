@@ -289,7 +289,7 @@ def generate(prompt):
 # gemini_client = genai.Client(api_key=GEMINI_API_KEY)
 # def generate(prompt):
 #     resp = gemini_client.models.generate_content(
-#         model="gemini-2.0-flash", contents=prompt,
+#         MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash"), contents=prompt,
 #     )
 #     return resp.text
 # ---------------------------------------------------------------------------
@@ -397,7 +397,11 @@ IF the query includes comparisons, "vs", or alternatives:
         )
         ok = False
 
-    final_response = {"report": report, "sources": sources}
+    final_response = {
+    "report": report,
+    "sources": sources,
+    "retrieved_context": retrieved_context,
+}
     if ok:
         cache_set(cache_key, final_response)
 

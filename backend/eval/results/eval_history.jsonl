@@ -1,7 +1,0 @@
-{"label": "ddg-baseline", "timestamp": "2026-06-30T13:57:28", "n": 15, "judge_model": "gemini-2.0-flash", "faithfulness": 0, "coverage": 0, "coherence": 0, "total_unsupported": 0, "p50_latency_s": 0.0, "errors": 15}
-{"label": "ddg-baseline", "timestamp": "2026-06-30T13:59:51", "n": 15, "judge_model": "gemini-2.0-flash", "faithfulness": 0, "coverage": 0, "coherence": 0, "total_unsupported": 0, "p50_latency_s": 0.0, "errors": 15}
-{"label": "ddg-baseline", "timestamp": "2026-06-30T16:20:06", "n": 15, "judge_model": "gemini-2.0-flash", "faithfulness": 0, "coverage": 0, "coherence": 0, "total_unsupported": 0, "p50_latency_s": 0.0, "errors": 15}
-{"label": "ddg-baseline", "timestamp": "2026-06-30T16:30:03", "n": 15, "judge_model": "gemini-2.0-flash", "faithfulness": 0, "coverage": 0, "coherence": 0, "total_unsupported": 0, "p50_latency_s": 34.6, "errors": 15}
-{"label": "ddg-baseline", "timestamp": "2026-06-30T17:47:53", "n": 15, "judge_model": "gemini-2.5-flash", "faithfulness": 1.8, "coverage": 4.13, "coherence": 4.67, "total_unsupported": 304, "p50_latency_s": 52.41, "errors": 1}
-{"label": "ddg-baseline", "timestamp": "2026-06-30T18:27:53", "n": 15, "judge_model": "openai/gpt-oss-20b:free", "faithfulness": 1.47, "coverage": 2.27, "coherence": 2.27, "total_unsupported": 69, "p50_latency_s": 45.39, "errors": 8}
-{"label": "smoke", "timestamp": "2026-06-30T18:43:08", "n": 3, "judge_model": "openai/gpt-oss-20b:free", "faithfulness": 0, "coverage": 0, "coherence": 0, "total_unsupported": 0, "p50_latency_s": 24.42, "errors": 3}
